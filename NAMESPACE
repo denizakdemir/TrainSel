@@ -1,0 +1,7 @@
+useDynLib(TrainSel, .registration=TRUE)
+export("TrainSel")
+export("MakeTrainSelData")
+export("TrainSelControl")
+
+importFrom("Rcpp", "evalCpp")
+importFrom("stats", "cov")
