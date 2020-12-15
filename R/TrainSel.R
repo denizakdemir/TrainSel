@@ -17,6 +17,11 @@ MakeTrainSelData <-
     if ((is.null(M) & is.null(K))) {
       stop("At least one of M (features) or K (similarity matrix) has to be present.")
     }
+    if ((is.null(M) & !is.null(K))) {
+      M<-svd(K)$u
+      rownames(M)<-rownames(K)
+    }
+
 namesinM<-rownames(M)
 if (is.null(namesinM)){
   rownames(M)<-1:nrow(M)
