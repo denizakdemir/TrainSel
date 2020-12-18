@@ -228,7 +228,7 @@ PamSel<-function(M=NULL,distancemethod=c("euclidean",  "maximum", "manhattan", "
   rownames(D)<-colnames(D)<-rownames(M)
   pamx <- cluster::pam(D, k=ntoselect)
   namesselected <- rownames(pamx$medoids)
-  return(which(namesselected%in%rownames(M)))
+  return(which(rownames(M)%in%namesselected))
 }
 
 #################################TrainSelControl

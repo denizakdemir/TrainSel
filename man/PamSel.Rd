@@ -1,7 +1,7 @@
-\name{TrainSel}
-\alias{TrainSel}
+\name{PamSel}
+\alias{PamSel}
 \title{
-TrainSel
+PamSel
 }
 \description{
 
@@ -31,7 +31,7 @@ Deniz Akdemir, Simon Rio, Julio Isidro Sanchez
 \examples{
 \dontrun{
 data(WheatData)
-solpam<-PamSel(M=Wheat.M, distancemethod="Euclidean", ntoselect=20)
+solpam<-PamSel(M=Wheat.M, distancemethod="euclidean", ntoselect=20)
 solpam
 }
 
