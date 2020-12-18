@@ -222,7 +222,14 @@ if (prod(setsizes)>0){
 }
 
 
-
+PamSel<-function(M=NULL,distancemethod=c("euclidean",  "maximum", "manhattan", "canberra", "binary", "minkowski"),ntoselect=NULL){
+  stopifnot(distancemethod%in%c("euclidean",  "maximum", "manhattan", "canberra", "binary", "minkowski"))
+  D=as.matrix(dist(M, method = distancemethod))
+  rownames(D)<-colnames(D)<-rownames(M)
+  pamx <- cluster::pam(D, k=ntoselect)
+  namesselected <- rownames(pamx$medoids)
+  return(which(namesselected%in%rownames(M)))
+}
 
 #################################TrainSelControl
 
