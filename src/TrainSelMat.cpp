@@ -218,26 +218,26 @@ public:
         arma::mat P = -X * arma::solve(X.t() * Vinv*X, X.t(), arma::solve_opts::likely_sympd + arma::solve_opts::fast) * Vinv + arma::eye(X.n_rows, X.n_rows);
         arma::vec D = sum(G.submat(Targetuvec - 1, solalluvec - 1) * Vinv * P % G.submat(Targetuvec - 1, solalluvec - 1), 1);
         arma::mat Num = G.submat(Targetuvec - 1, Targetuvec - 1);
-        return mean(D / Num.diag());
+        return min(D / Num.diag());
       } else if (typestat == "CDMEANX") {
         arma::uvec solalluvec = as<arma::uvec>(wrap(soln_int));
         arma::mat V = G.submat(solalluvec - 1, solalluvec - 1) + R.submat(solalluvec - 1, solalluvec - 1) + 1e-15 * arma::eye(solalluvec.size(), solalluvec.size());
         arma::mat Vinv = arma::pinv(V, 1e-5, "std");
         arma::mat P = -X * solve(X.t() * Vinv*X, X.t(), arma::solve_opts::likely_sympd + arma::solve_opts::fast) * Vinv + arma::eye(X.n_rows, X.n_rows);
         arma::vec D = sum(G.cols(solalluvec - 1) * Vinv * P % G.cols(solalluvec - 1), 1);
-        return mean(D / G.diag());
+        return min(D / G.diag());
       } else if (typestat == "CDMEAN") {
         arma::uvec solalluvec = as<arma::uvec>(wrap(soln_int));
         arma::mat V = G.submat(solalluvec - 1, solalluvec - 1) + R.submat(solalluvec - 1, solalluvec - 1) + 1e-15 * arma::eye(solalluvec.size(), solalluvec.size());
         arma::vec D = sum(G.cols(solalluvec - 1) * arma::pinv(V, 1e-5, "std") % G.cols(solalluvec - 1), 1);
-        return mean(D / G.diag());
+        return min(D / G.diag());
       } else if (typestat == "CDMEANT") {
         arma::uvec solalluvec = as<arma::uvec>(wrap(soln_int));
         arma::uvec Targetuvec = as<arma::uvec>(wrap(Target));
         arma::mat V = G.submat(solalluvec - 1, solalluvec - 1) + R.submat(solalluvec - 1, solalluvec - 1) + 1e-15 * arma::eye(solalluvec.size(), solalluvec.size());
         arma::vec D = sum(G.submat(Targetuvec - 1, solalluvec - 1) * arma::pinv(V, 1e-5, "std") % G.submat(Targetuvec - 1, solalluvec - 1), 1);
         arma::mat Num = G.submat(Targetuvec - 1, Targetuvec - 1);
-        return mean(D / Num.diag());
+        return min(D / Num.diag());
       } else {
         return 0;
       }
@@ -262,26 +262,26 @@ public:
         arma::mat P = -X * arma::solve(X.t() * Vinv*X, X.t(), arma::solve_opts::likely_sympd + arma::solve_opts::fast) * Vinv + arma::eye(X.n_rows, X.n_rows);
         arma::vec D = sum(G.submat(Targetuvec - 1, solalluvec - 1) * Vinv * P % G.submat(Targetuvec - 1, solalluvec - 1), 1);
         arma::mat Num = G.submat(Targetuvec - 1, Targetuvec - 1);
-        return mean(D / Num.diag());
+        return min(D / Num.diag());
       } else if (typestat == "CDMEANX") {
         arma::uvec solalluvec = as<arma::uvec>(wrap(soln_int));
         arma::mat V = G.submat(solalluvec - 1, solalluvec - 1) + R.submat(solalluvec - 1, solalluvec - 1) + 1e-15 * arma::eye(solalluvec.size(), solalluvec.size());
         arma::mat Vinv = arma::pinv(V, 1e-5, "std");
         arma::mat P = -X * solve(X.t() * Vinv*X, X.t(), arma::solve_opts::likely_sympd + arma::solve_opts::fast) * Vinv + arma::eye(X.n_rows, X.n_rows);
         arma::vec D = sum(G.cols(solalluvec - 1) * Vinv * P % G.cols(solalluvec - 1), 1);
-        return mean(D / G.diag());
+        return min(D / G.diag());
       } else if (typestat == "CDMEAN") {
         arma::uvec solalluvec = as<arma::uvec>(wrap(soln_int));
         arma::mat V = G.submat(solalluvec - 1, solalluvec - 1) + R.submat(solalluvec - 1, solalluvec - 1) + 1e-15 * arma::eye(solalluvec.size(), solalluvec.size());
         arma::vec D = sum(G.cols(solalluvec - 1) * arma::pinv(V, 1e-5, "std") % G.cols(solalluvec - 1), 1);
-        return mean(D / G.diag());
+        return min(D / G.diag());
       } else if (typestat == "CDMEANT") {
         arma::uvec solalluvec = as<arma::uvec>(wrap(soln_int));
         arma::uvec Targetuvec = as<arma::uvec>(wrap(Target));
         arma::mat V = G.submat(solalluvec - 1, solalluvec - 1) + R.submat(solalluvec - 1, solalluvec - 1) + 1e-15 * arma::eye(solalluvec.size(), solalluvec.size());
         arma::vec D = sum(G.submat(Targetuvec - 1, solalluvec - 1) * arma::pinv(V, 1e-5, "std") % G.submat(Targetuvec - 1, solalluvec - 1), 1);
         arma::mat Num = G.submat(Targetuvec - 1, Targetuvec - 1);
-        return mean(D / Num.diag());
+        return min(D / Num.diag());
       } else {
         return 0;
       }
@@ -953,13 +953,6 @@ void  MutatetowardsNTotal(int ind, int ninG=1, int ntotal=0){
 
 
 
-///////////////////////////////
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-/*
- */
-
 
 
 
@@ -1056,7 +1049,6 @@ public:
 
     if (CheckData) {
       if (!CD) {
-
         STATc = STATCLASS(Data);
       }
     }
@@ -1244,8 +1236,9 @@ public:
 
     pop.OrderPop=orderRcpp(pop.get_Fitness())-1;
     int bestsol= pop.OrderPop(pop.get_npop()-1);
-    Best_Sol_Int=pop.getSolnInt(pop.get_npop()-1);
-    Best_Sol_DBL=pop.getSolnDbl(pop.get_npop()-1);
+    Best_Sol_Int=pop.getSolnInt(bestsol);
+    Best_Sol_DBL=pop.getSolnDbl(bestsol);
+    Best_Val=pop.get_Fitness(bestsol);
 
     if (minitcond) {
       convergence = 1;
@@ -1254,7 +1247,6 @@ public:
       convergence = 0;
     }
 
-    Best_Val=max(maxvec);
 
   }
 
