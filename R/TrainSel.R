@@ -154,69 +154,10 @@ if (!is.function(Stat)){
 
 if (nStat==1){
 out<-TrainSelC(Data=Data, CANDIDATES =Candidates,setsizes =setsizes,settypes=settypes,Stat = Stat,CD=CD,Target=Target,control=control, ntotal=ntotal)
-
 class(out)<-"TrainSelOut"
 } else {
-if (settypes=="UOS"){
-  Ordered=FALSE
-  } else if (settypes=="OS"){
-  Ordered=TRUE
-  } else {
-    stop("No other settype than UOS or OS for MO!")
-    }
-if (prod(setsizes)>0){
-  if (settypes=="UOS"){
-    Ordered=FALSE
-  } else if (settypes=="OS"){
-    Ordered=TRUE
-  } else {
-    stop("No other settype than UOS or OS for MO!")
-  }
-  SSMOout <-
-    SelectSetMO(
-      Data = Data,
-      Candidates = Candidates[[1]],
-      ntoselect = setsizes[[1]],
-      Ordered = Ordered,
-      selectionstat = Stat,
-      nstats = nStat,
-      npopGA = control$npop,
-      mutprob = control$mutprob,
-      mutintensity = control$mutintensity ,
-      nitGA = control$niterations,
-      niterSANN =0,
-      stepSANN = 0,
-      niterExc = 0
-    )
-  out<-list(BestSols=SSMOout$ElitePop, BestVals=SSMOout$ElitePopFuncValues)
-  class(out)<-"TrainSelOut"
-} else {
-  if (settypes!="UOS"){
-    stop("No other settype than UOS for MO with unspecified ntoselect!")
-  }
-  SSMOout <-
-    SelectSetMOBool(
-      Data = Data,
-      nbits = length(Candidates[[1]]),
-      selectionstat = Stat,
-      nstats = nStat,
-      npopGA = control$npop,
-      mutprob = control$mutprob,
-      mutintensity = control$mutintensity,
-      minlengthfrontier = 5,
-      display_progress = TRUE
-    )
-  lengthsols<-sapply(1:ncol(SSMOout$ElitePop),function(i){sum(SSMOout$ElitePop[, i])})
-  ElitePop2<-matrix(NA, max(lengthsols), ncol(SSMOout$ElitePop))
-
-  for (i in 1:ncol(SSMOout$ElitePop)) {
-    ElitePop2[1:lengthsols[i], i] <- Candidates[[1]][SSMOout$ElitePop[, i]]
-  }
-
-  SSMOout<-c(list(ElitePop=ElitePop2), SSMOout[-1])
-  out<-list(BestSols=SSMOout$ElitePop, BestVals=SSMOout$ElitePopFuncValues)
-  class(out)<-"TrainSelOut"
-}
+out<-TrainSelCMOO(Data=Data, CANDIDATES =Candidates,setsizes =setsizes,settypes=settypes,Stat = Stat,nstat=nStat, control=control)
+class(out)<-"TrainSelOut"
 }
   return(out)
 }

@@ -22,7 +22,7 @@ TrainSel(Data = NULL,
   \item{Candidates}{A list of vectors of integers, for 'DBL' type the corresponding element in the list are the lower and upper bounds of the numeric variable of interest. }
 \item{setsizes}{A vector of integers. Number of samples in each of the samples.}
 \item{ntotal}{An integer value. The total number of unique integers in 'BestSoln_int' in the in the final solution. Default value is 0 which means no ntotal constraint is applied. When ntotal>0 and number of unique integers in the solution is not equal to ntotal, the Stat value is set to -1e_10*abs("number of unique integers in the solution"-ntotal).}
-\item{settypes}{Five options are available: "UOS" unordered sample, "UOMS" unordered multi-set, "OS" ordered set, "OMS" ordered multi-set, "DBl" numeric variables.
+\item{settypes}{Six options are available:"BOOL" Boelian, "UOS" unordered sample, "UOMS" unordered multi-set, "OS" ordered set, "OMS" ordered multi-set, "DBl" numeric variables.
 }
 \item{Stat}{Either NULL (in that case CDMEAN is used) or a user defined function that takes an integer vector or a vector of numeric variables and possibly a Data argument. The first input is used as the vector of integers, second input is the vector of numeric values and the last input if provided is used as Data. For univariate optimization this function returns a numeric value which we want to maximize with respect to the integer vector. Note that integer vector is considered to be the concatenation of the "OS", "UOS", "OMS", "UOMS" components provided in 'settypes', and the numeric vector corresponds to the concanetation of the 'DBL' components. There is also minimal suppoert for muti-objective optimization (see details and examples).
 }

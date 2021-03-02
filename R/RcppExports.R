@@ -9,11 +9,7 @@ TrainSelC <- function(Data, CANDIDATES, setsizes, settypes, Stat, CD, Target, co
     .Call(`_TrainSel_TrainSelC`, Data, CANDIDATES, setsizes, settypes, Stat, CD, Target, control, ntotal)
 }
 
-SelectSetMO <- function(Data, Candidates, ntoselect, selectionstat, nstats, Ordered, npopGA = 100L, mutprob = .8, mutintensity = 1L, nitGA = 500L, minlengthfrontier = 5L, niterExc = 0L, niterSANN = 0L, stepSANN = 1e-1, display_progress = TRUE) {
-    .Call(`_TrainSel_SelectSetMO`, Data, Candidates, ntoselect, selectionstat, nstats, Ordered, npopGA, mutprob, mutintensity, nitGA, minlengthfrontier, niterExc, niterSANN, stepSANN, display_progress)
-}
-
-SelectSetMOBool <- function(Data, nbits, selectionstat, nstats, npopGA = 100L, mutprob = .8, mutintensity = 1L, nitGA = 500L, minlengthfrontier = 10L, display_progress = TRUE) {
-    .Call(`_TrainSel_SelectSetMOBool`, Data, nbits, selectionstat, nstats, npopGA, mutprob, mutintensity, nitGA, minlengthfrontier, display_progress)
+TrainSelCMOO <- function(Data, CANDIDATES, setsizes, settypes, Stat, nstat, control) {
+    .Call(`_TrainSel_TrainSelCMOO`, Data, CANDIDATES, setsizes, settypes, Stat, nstat, control)
 }
 

@@ -117,6 +117,236 @@ arma::mat nearPDc(arma::mat X){
 
 
 
+//////////////////////////////
+
+double crossprodRcpp(const NumericVector& x, const NumericVector& y) {
+  int nx = x.length();
+  int ny = y.length();
+  double sumup = 0;
+
+  if (nx == ny) {
+    for (int i = 0; i < nx; i++)
+      sumup += x[i] * y[i];
+  } else
+    sumup = NA_REAL; // NA_REAL: constant of NA value for numeric (double) values
+
+  return sumup;
+}
+
+bool is_duplicate_row(int& r, NumericMatrix& x) {
+  int i = 0, nr = x.nrow();
+  const NumericMatrix::Row y = x.row(r);
+
+  for (; i < r; i++) {
+    if (is_true(all(y == x.row(i)))) {
+      return true;
+    }
+  }
+  for (i = r + 1; i < nr; i++) {
+    if (is_true(all(y == x.row(i)))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+LogicalVector duplicatedRcpp(NumericMatrix m) {
+  int nr = m.nrow();
+  int i;
+  LogicalVector out(nr);
+  for (i = 0; i < nr; i++) {
+    out(i) = is_duplicate_row(i, m);
+  }
+  return out;
+}
+
+NumericMatrix cbindNM(const NumericMatrix& a, const NumericMatrix& b) {
+  //the colnumber of first matrix
+  int acoln = a.ncol();
+  //the colnumber of second matrix
+  int bcoln = b.ncol();
+  //build a new matrix, the dim is a.nrow() and acoln+bcoln
+  NumericMatrix out(a.nrow(), acoln + bcoln);
+  for (int j = 0; j < acoln + bcoln; j++) {
+    if (j < acoln) {
+      out(_, j) = a(_, j);
+    } else {
+      //put the context in the second matrix to the new matrix
+      out(_, j) = b(_, j - acoln);
+    }
+  }
+  return out;
+}
+
+IntegerMatrix cbindIM(const IntegerMatrix& a, const IntegerMatrix& b) {
+  //the colnumber of first matrix
+  int acoln = a.ncol();
+  //the colnumber of second matrix
+  int bcoln = b.ncol();
+  //build a new matrix, the dim is a.nrow() and acoln+bcoln
+  IntegerMatrix out(a.nrow(), acoln + bcoln);
+  for (int j = 0; j < acoln + bcoln; j++) {
+    if (j < acoln) {
+      out(_, j) = a(_, j);
+    } else {
+      //put the context in the second matrix to the new matrix
+      out(_, j) = b(_, j - acoln);
+    }
+  }
+  return out;
+}
+
+LogicalMatrix cbindLM(const LogicalMatrix& a, const LogicalMatrix& b) {
+  //the colnumber of first matrix
+  int acoln = a.ncol();
+  //the colnumber of second matrix
+  int bcoln = b.ncol();
+  //build a new matrix, the dim is a.nrow() and acoln+bcoln
+  LogicalMatrix out(a.nrow(), acoln + bcoln);
+  for (int j = 0; j < acoln + bcoln; j++) {
+    if (j < acoln) {
+      out(_, j) = a(_, j);
+    } else {
+      //put the context in the second matrix to the new matrix
+      out(_, j) = b(_, j - acoln);
+    }
+  }
+  return out;
+}
+
+Rcpp::NumericMatrix subcolNM(
+    const Rcpp::NumericMatrix& x, const Rcpp::IntegerVector& y) {
+
+  // Determine the number of observations
+  int n_cols_out = y.length();
+
+  // Create an output matrix
+  Rcpp::NumericMatrix out = Rcpp::no_init(x.nrow(), n_cols_out);
+
+  // Loop through each column and copy the data.
+  for (unsigned int z = 0; z < n_cols_out; ++z) {
+    out(Rcpp::_, z) = x(Rcpp::_, y[z]);
+  }
+
+  return out;
+}
+
+Rcpp::IntegerMatrix subcolIM(
+    const Rcpp::IntegerMatrix& x, const Rcpp::IntegerVector& y) {
+
+  // Determine the number of observations
+  int n_cols_out = y.length();
+
+  // Create an output matrix
+  Rcpp::IntegerMatrix out = Rcpp::no_init(x.nrow(), n_cols_out);
+
+  // Loop through each column and copy the data.
+  for (unsigned int z = 0; z < n_cols_out; ++z) {
+    out(Rcpp::_, z) = x(Rcpp::_, y[z]);
+  }
+
+  return out;
+}
+
+Rcpp::IntegerVector subcolIM0(
+    const Rcpp::IntegerMatrix& x, const int& y) {
+  Rcpp::IntegerVector out = x(Rcpp::_, y);
+
+  return out;
+}
+
+Rcpp::LogicalMatrix subcolLM(
+    const Rcpp::LogicalMatrix& x, const Rcpp::IntegerVector& y) {
+
+  // Determine the number of observations
+  int n_cols_out = y.length();
+
+  // Create an output matrix
+  Rcpp::LogicalMatrix out = Rcpp::no_init(x.nrow(), n_cols_out);
+
+  // Loop through each column and copy the data.
+  for (unsigned int z = 0; z < n_cols_out; ++z) {
+    out(Rcpp::_, z) = x(Rcpp::_, y[z]);
+  }
+
+  return out;
+}
+
+
+
+
+
+
+int dominates(NumericMatrix p, int i, int j, int nobj) {
+  int i_flagged = 0;
+  int j_flagged = 0;
+  int k;
+  NumericVector pi = p(_, i);
+  NumericVector pj = p(_, j);
+  for (k = 0; k < nobj; ++k) {
+    const double p_ik = pi[k];
+    const double p_jk = pj[k];
+    if (p_ik > p_jk) {
+      j_flagged = 1;
+    } else if (p_jk > p_ik) {
+      i_flagged = 1;
+    }
+  }
+  return j_flagged - i_flagged;
+}
+
+LogicalVector do_is_dominated(NumericMatrix points) {
+
+  int i, j;
+
+
+  int d = points.nrow();
+  int n = points.ncol();
+  LogicalVector res(n);
+
+  for (i = 0; i < n; ++i) {
+    res(i) = false;
+  }
+
+  for (i = 0; i < n; ++i) {
+    if (res(i)) {
+      continue;
+    }
+    for (j = (i + 1); j < n; ++j) {
+      if (res(j)) {
+        continue;
+      }
+      int dom = dominates(points, i, j, d);
+      if (dom > 0) {
+        res[j] = true;
+      } else if (dom < 0) {
+        res[i] = true;
+      }
+    }
+  }
+
+  return res;
+}
+
+
+
+
+int contains(const StringVector& X, const StringVector& z) {
+  int out;
+  if (std::find(X.begin(), X.end(), z(0)) != X.end()) {
+    out = 1L;
+  } else {
+    out = 0L;
+  }
+  return out;
+}
+
+
+
+
+
+
 /////////////
 
 
@@ -318,18 +548,21 @@ private:
   STATCLASS StatClass;
   vector<double> FitnessVals;
 
+  vector<IntegerMatrix> BOOL;
   vector<IntegerMatrix> OS;
   vector<IntegerMatrix> UOS;
   vector<IntegerMatrix> OMS;
   vector<IntegerMatrix> UOMS;
   vector<NumericMatrix> DBL;
 
+  int nBOOL=0;
   int nOS=0;
   int nUOS=0;
   int nOMS=0;
   int nUOMS=0;
   int nDBL=0;
 
+  IntegerVector nvecBOOL;
   IntegerVector nvecOS;
   IntegerVector nvecUOS;
   IntegerVector nvecOMS;
@@ -342,8 +575,11 @@ private:
   vector<IntegerVector>  CandUOMS;
   vector<NumericVector> CandDBL;
 
+
 public:
   //////////////
+  IntegerVector CandBOOL={1,0};
+
   IntegerVector OrderPop;
 
   Population(){
@@ -403,6 +639,10 @@ public:
     CandDBL.push_back(Cand);
   }
 
+ IntegerMatrix get_BOOL(int i){
+    return BOOL.at(i);
+  }
+
   IntegerMatrix get_OS(int i){
     return OS.at(i);
   }
@@ -422,6 +662,17 @@ public:
 
   //////////////////////////
   void InitRand(){
+    int iiBOOL=0;
+    for (int i=0;i<nchrom;i++)
+      if (chromtypes[i]=="BOOL"){
+        IntegerMatrix TempMat(chromsizes[i],npop+nelite);
+        for (int j=0;j<(npop+nelite);j++){
+          TempMat(_,j)=sample(CandBOOL, chromsizes[i],true);
+        }
+        BOOL.push_back(TempMat);
+        iiBOOL++;
+      }
+      nBOOL=iiBOOL;
     int iiOS=0;
     for (int i=0;i<nchrom;i++)
       if (chromtypes[i]=="OS"){
@@ -479,7 +730,8 @@ public:
               nDBL=iiDBL;
   }
 
-  void Init(vector<IntegerMatrix> OS_,vector<IntegerMatrix> UOS_,vector<IntegerMatrix> OMS_,vector<IntegerMatrix> UOMS_, vector<NumericMatrix>DBL_){
+  void Init(vector<IntegerMatrix> BOOL_, vector<IntegerMatrix> OS_,vector<IntegerMatrix> UOS_,vector<IntegerMatrix> OMS_,vector<IntegerMatrix> UOMS_, vector<NumericMatrix>DBL_){
+    BOOL=BOOL_;
     OS=OS_;
     UOS=UOS_;
     OMS=OMS_;
@@ -491,7 +743,11 @@ public:
 
 
   void MoveInd(int from, int to){
-
+    if (nBOOL>0){
+      for (int i=0;i<nBOOL;i++){
+        BOOL.at(i)(_, to)=BOOL.at(i)(_, from);
+      }
+    }
     if (nOS>0){
       for (int i=0;i<nOS;i++){
         OS.at(i)(_, to)=OS.at(i)(_, from);
@@ -523,7 +779,23 @@ public:
 
   void MakeCross(int p1, int p2, int child){
 
+    if (nBOOL>0){
+      for (int i=0;i<nBOOL;i++){
+        int BOOLirows=BOOL.at(i).nrow();
 
+        IntegerVector TempSol;
+        for (int j=0;j<BOOLirows;j++){
+          int sampleint=sample(2,1)[0];
+
+          if (sampleint==1){
+            TempSol.push_back(BOOL.at(i)(j,p1));
+          } else {
+            TempSol.push_back(BOOL.at(i)(j,p2));
+          }
+        }
+        BOOL.at(i)(_,child)=TempSol;
+      }
+    }
 
     if (nOS>0){
       for (int i=0;i<nOS;i++){
@@ -597,6 +869,24 @@ public:
 
 
   void  Mutate(int ind, double MUTPROB){
+
+
+    if (nBOOL>0){
+      for (int i=0;i<nBOOL;i++){
+        int BOOLirows=BOOL.at(i).nrow();
+        IntegerVector IndSol=BOOL.at(i)(_,ind);
+        for (int j=0;j<BOOLirows;j++){
+          double mutp=runif(1)(0);
+          if (mutp<MUTPROB){
+            IntegerVector totakeout;
+            totakeout.push_back(IndSol(j));
+            int replacement=sample(setdiff(CandBOOL,totakeout),1)(0);
+            IndSol(j)=replacement;
+          }
+        }
+        BOOL.at(i)(_,ind)=IndSol;
+      }
+    }
 
     if (nOS>0){
       for (int i=0;i<nOS;i++){
@@ -726,8 +1016,8 @@ public:
   }
 
 
-///
 
+/*
 void  MutatetowardsNTotal(int ind, int ninG=1, int ntotal=0){
   if (ntotal>0){
   IntegerVector soln=getSolnInt(ind);
@@ -761,18 +1051,25 @@ void  MutatetowardsNTotal(int ind, int ninG=1, int ntotal=0){
   }
   }
 }
+*/
 
-///
 
 
   IntegerVector getSolnInt(int ind){
     IntegerVector soln;
+    int iBOOL=0;
     int iOS=0;
     int iUOS=0;
     int iOMS=0;
     int iUOMS=0;
     for (int i=0;i<chromsizes.length();i++){
 
+      if (chromtypes[i]=="BOOL"){
+        for (int j=0;j<chromsizes[i];j++){
+          soln.push_back(BOOL.at(iBOOL)(j,ind));
+        }
+        iBOOL++;
+      }
       if (chromtypes[i]=="OS"){
         for (int j=0;j<chromsizes[i];j++){
           soln.push_back(OS.at(iOS)(j,ind));
@@ -805,12 +1102,20 @@ void  MutatetowardsNTotal(int ind, int ninG=1, int ntotal=0){
 
 
   void putSolnInt(int ind, IntegerVector soln){
+    int iBOOL=0;
     int iOS=0;
     int iUOS=0;
     int iOMS=0;
     int iUOMS=0;
     int jj=0;
     for (int i=0;i<chromsizes.length();i++){
+      if (chromtypes[i]=="BOOL"){
+        for (int j=0;j<chromsizes[i];j++){
+          BOOL.at(iBOOL)(j,ind)=soln(jj);
+          jj++;
+        }
+        iBOOL++;
+      }
 
       if (chromtypes[i]=="OS"){
         for (int j=0;j<chromsizes[i];j++){
@@ -1054,21 +1359,21 @@ public:
     }
     if (CheckData & CheckDataMM) {
       if (CD) {
-        if (Data.containsElementNamed("X") & (Target.length() > 0)) {
+        if (Data.containsElementNamed("X") & (CheckTarget)) {
           arma::mat X = as<arma::mat>(Data["X"]);
           arma::mat G = as<arma::mat>(Data["G"]);
           arma::mat R = as<arma::mat>(Data["R"]);
           STATc = STATCLASS(Target, X, G, R);
           STATc.setAllinG(as<int>(Data["Nind"]));
         }
-        if (!Data.containsElementNamed("X") & (Target.length() > 0)) {
+        if (!Data.containsElementNamed("X") & (CheckTarget)) {
           arma::mat G = as<arma::mat>(Data["G"]);
           arma::mat R = as<arma::mat>(Data["R"]);
           STATc = STATCLASS(Target, G, R);
           STATc.setAllinG(as<int>(Data["Nind"]));
 
         }
-        if (Data.containsElementNamed("X") & !(Target.length() > 0)) {
+        if (Data.containsElementNamed("X") & !(CheckTarget)) {
 
           arma::mat X = as<arma::mat>(Data["X"]);
           arma::mat G = as<arma::mat>(Data["G"]);
@@ -1077,7 +1382,7 @@ public:
           STATc.setAllinG(as<int>(Data["Nind"]));
 
         }
-        if (!Data.containsElementNamed("X")&!(Target.length() > 0)) {
+        if (!Data.containsElementNamed("X")&!(CheckTarget)) {
           const arma::mat G = as<arma::mat>(Data["G"]);
           const arma::mat R = as<arma::mat>(Data["R"]);
           STATc = STATCLASS(G, R);
@@ -1147,7 +1452,7 @@ public:
         tryCount++;
       }
       if (tryCount==10000){
-        Rcout << "No feasible solution found in 10000 iterations! \n Try restart??." << std::endl;
+        Rcout << "No feasible solution found in 10000 (warmup) iterations! \n Try restart??." << std::endl;
       }
       R_CheckUserInterrupt();
       if (Generation > MINITBEFSTOP) {
@@ -1302,888 +1607,1128 @@ List TrainSelC(List Data,
 
 
 
-//////////////////////////////
 
-double crossprodRcpp(const NumericVector& x, const NumericVector& y) {
-  int nx = x.length();
-  int ny = y.length();
-  double sumup = 0;
+struct STATCLASSMOO {
+public:
+  Rcpp::List Data = Rcpp::List::create();
+  std::string typestat;
+  int numstat;
+  STATCLASSMOO(const Rcpp::List& Data_) {
+    Data = Data_;
+    typestat = "UDD";
+  }
 
-  if (nx == ny) {
-    for (int i = 0; i < nx; i++)
-      sumup += x[i] * y[i];
-  } else
-    sumup = NA_REAL; // NA_REAL: constant of NA value for numeric (double) values
+  STATCLASSMOO() {
+    typestat = "UD";
+  }
 
-  return sumup;
-}
+  void set_numstat(int numstat_){
+    numstat=numstat_;
+  }
 
-bool is_duplicate_row(int& r, NumericMatrix& x) {
-  int i = 0, nr = x.nrow();
-  const NumericMatrix::Row y = x.row(r);
+  int get_numstat(){
+    return numstat;
+  }
 
-  for (; i < r; i++) {
-    if (is_true(all(y == x.row(i)))) {
-      return true;
+
+
+  IntegerVector getInds(IntegerVector soln_int){
+    return soln_int;
+  }
+
+  NumericVector GetStat(const Rcpp::IntegerVector& soln_int, const Rcpp::NumericVector& soln_dbl, Rcpp::Function Stat) {
+
+    NumericVector out;
+    if (typestat == "UD") {
+      out= as<NumericVector>(Stat(soln_int, soln_dbl));
     }
-  }
-  for (i = r + 1; i < nr; i++) {
-    if (is_true(all(y == x.row(i)))) {
-      return true;
+
+    if (typestat == "UDD") {
+      out=as<NumericVector>(Stat(soln_int, soln_dbl, Data));
     }
+    return out;
   }
 
-  return false;
-}
 
-LogicalVector duplicatedRcpp(NumericMatrix m) {
-  int nr = m.nrow();
-  int i;
-  LogicalVector out(nr);
-  for (i = 0; i < nr; i++) {
-    out(i) = is_duplicate_row(i, m);
-  }
-  return out;
-}
-
-NumericMatrix cbindNM(const NumericMatrix& a, const NumericMatrix& b) {
-  //the colnumber of first matrix
-  int acoln = a.ncol();
-  //the colnumber of second matrix
-  int bcoln = b.ncol();
-  //build a new matrix, the dim is a.nrow() and acoln+bcoln
-  NumericMatrix out(a.nrow(), acoln + bcoln);
-  for (int j = 0; j < acoln + bcoln; j++) {
-    if (j < acoln) {
-      out(_, j) = a(_, j);
-    } else {
-      //put the context in the second matrix to the new matrix
-      out(_, j) = b(_, j - acoln);
+  NumericVector GetStat(const Rcpp::IntegerVector& soln_int, Rcpp::Function Stat) {
+    NumericVector out;
+    if (typestat == "UD") {
+      out= as<NumericVector>(Stat(soln_int));
     }
-  }
-  return out;
-}
-
-IntegerMatrix cbindIM(const IntegerMatrix& a, const IntegerMatrix& b) {
-  //the colnumber of first matrix
-  int acoln = a.ncol();
-  //the colnumber of second matrix
-  int bcoln = b.ncol();
-  //build a new matrix, the dim is a.nrow() and acoln+bcoln
-  IntegerMatrix out(a.nrow(), acoln + bcoln);
-  for (int j = 0; j < acoln + bcoln; j++) {
-    if (j < acoln) {
-      out(_, j) = a(_, j);
-    } else {
-      //put the context in the second matrix to the new matrix
-      out(_, j) = b(_, j - acoln);
+    if (typestat == "UDD") {
+      out= as<NumericVector>(Stat(soln_int, Data));
     }
-  }
-  return out;
-}
+    return out;
 
-LogicalMatrix cbindLM(const LogicalMatrix& a, const LogicalMatrix& b) {
-  //the colnumber of first matrix
-  int acoln = a.ncol();
-  //the colnumber of second matrix
-  int bcoln = b.ncol();
-  //build a new matrix, the dim is a.nrow() and acoln+bcoln
-  LogicalMatrix out(a.nrow(), acoln + bcoln);
-  for (int j = 0; j < acoln + bcoln; j++) {
-    if (j < acoln) {
-      out(_, j) = a(_, j);
-    } else {
-      //put the context in the second matrix to the new matrix
-      out(_, j) = b(_, j - acoln);
+  }
+
+  NumericVector GetStat(const Rcpp::NumericVector& soln_dbl, Rcpp::Function Stat) {
+    NumericVector out;
+    if (typestat == "UD") {
+      out= as<NumericVector>(Stat(soln_dbl));
     }
-  }
-  return out;
-}
-
-Rcpp::NumericMatrix subcolNM(
-    const Rcpp::NumericMatrix& x, const Rcpp::IntegerVector& y) {
-
-  // Determine the number of observations
-  int n_cols_out = y.length();
-
-  // Create an output matrix
-  Rcpp::NumericMatrix out = Rcpp::no_init(x.nrow(), n_cols_out);
-
-  // Loop through each column and copy the data.
-  for (unsigned int z = 0; z < n_cols_out; ++z) {
-    out(Rcpp::_, z) = x(Rcpp::_, y[z]);
-  }
-
-  return out;
-}
-
-Rcpp::IntegerMatrix subcolIM(
-    const Rcpp::IntegerMatrix& x, const Rcpp::IntegerVector& y) {
-
-  // Determine the number of observations
-  int n_cols_out = y.length();
-
-  // Create an output matrix
-  Rcpp::IntegerMatrix out = Rcpp::no_init(x.nrow(), n_cols_out);
-
-  // Loop through each column and copy the data.
-  for (unsigned int z = 0; z < n_cols_out; ++z) {
-    out(Rcpp::_, z) = x(Rcpp::_, y[z]);
-  }
-
-  return out;
-}
-
-Rcpp::IntegerVector subcolIM0(
-    const Rcpp::IntegerMatrix& x, const int& y) {
-  Rcpp::IntegerVector out = x(Rcpp::_, y);
-
-  return out;
-}
-
-Rcpp::LogicalMatrix subcolLM(
-    const Rcpp::LogicalMatrix& x, const Rcpp::IntegerVector& y) {
-
-  // Determine the number of observations
-  int n_cols_out = y.length();
-
-  // Create an output matrix
-  Rcpp::LogicalMatrix out = Rcpp::no_init(x.nrow(), n_cols_out);
-
-  // Loop through each column and copy the data.
-  for (unsigned int z = 0; z < n_cols_out; ++z) {
-    out(Rcpp::_, z) = x(Rcpp::_, y[z]);
-  }
-
-  return out;
-}
-
-
-
-
-
-
-int dominates(NumericMatrix p, int i, int j, int nobj) {
-  int i_flagged = 0;
-  int j_flagged = 0;
-  int k;
-  NumericVector pi = p(_, i);
-  NumericVector pj = p(_, j);
-  for (k = 0; k < nobj; ++k) {
-    const double p_ik = pi[k];
-    const double p_jk = pj[k];
-    if (p_ik > p_jk) {
-      j_flagged = 1;
-    } else if (p_jk > p_ik) {
-      i_flagged = 1;
+    if (typestat == "UDD") {
+      out = as<NumericVector>(Stat(soln_dbl, Data));
     }
+    return out;
   }
-  return j_flagged - i_flagged;
-}
-
-LogicalVector do_is_dominated(NumericMatrix points) {
-
-  int i, j;
+};
 
 
-  int d = points.nrow();
-  int n = points.ncol();
-  LogicalVector res(n);
 
-  for (i = 0; i < n; ++i) {
-    res(i) = false;
+
+class PopulationMOO{
+private:
+  int nchrom;
+  int npop;
+
+  IntegerVector chromsizes;
+  CharacterVector chromtypes;
+
+  STATCLASSMOO StatClass;
+  NumericMatrix FitnessVals;
+  vector<IntegerMatrix> BOOL;
+  vector<IntegerMatrix> OS;
+  vector<IntegerMatrix> UOS;
+  vector<IntegerMatrix> OMS;
+  vector<IntegerMatrix> UOMS;
+  vector<NumericMatrix> DBL;
+  int nBOOL=0;
+  int nOS=0;
+  int nUOS=0;
+  int nOMS=0;
+  int nUOMS=0;
+  int nDBL=0;
+
+  IntegerVector nvecBOOL;
+  IntegerVector nvecOS;
+  IntegerVector nvecUOS;
+  IntegerVector nvecOMS;
+  IntegerVector nvecUOMS;
+  IntegerVector nvecDBL;
+
+  vector<IntegerVector> CandOS;
+  vector<IntegerVector>  CandUOS;
+  vector<IntegerVector>  CandOMS;
+  vector<IntegerVector>  CandUOMS;
+  vector<NumericVector> CandDBL;
+
+public:
+  //////////////
+  IntegerVector CandBOOL={1,0};
+
+
+  PopulationMOO(){
   }
 
-  for (i = 0; i < n; ++i) {
-    if (res(i)) {
-      continue;
-    }
-    for (j = (i + 1); j < n; ++j) {
-      if (res(j)) {
-        continue;
+  void set_npop(int npop_){
+    npop=npop_;
+  }
+
+
+  void set_nchrom(int nchrom_){
+    nchrom=nchrom_;
+  }
+  void set_chromsizes(IntegerVector chromsizes_){
+    chromsizes=chromsizes_;
+  }
+  void set_chromtypes(CharacterVector chromtypes_){
+    chromtypes=chromtypes_;
+  }
+  /////////////////
+  int get_npop( ){
+    return npop;
+  }
+
+  int get_nchrom( ){
+    return nchrom;
+  }
+  IntegerVector get_chromsizes( ){
+    return chromsizes;
+  }
+  CharacterVector get_chromtypes(){
+    return chromtypes;
+  }
+
+
+
+  /////////////
+
+  void push_back_CandOS(IntegerVector Cand){
+    CandOS.push_back(Cand);
+  }
+  void push_back_CandUOS(IntegerVector Cand){
+    CandUOS.push_back(Cand);
+  }
+  void push_back_CandOMS(IntegerVector Cand){
+    CandOMS.push_back(Cand);
+  }
+  void push_back_CandUOMS(IntegerVector Cand){
+    CandUOMS.push_back(Cand);
+  }
+  void push_back_CandDBL(NumericVector Cand){
+    CandDBL.push_back(Cand);
+  }
+
+  IntegerMatrix get_BOOL(int i){
+    return BOOL.at(i);
+  }
+
+  IntegerMatrix get_OS(int i){
+    return OS.at(i);
+  }
+  IntegerMatrix get_UOS(int i){
+    return UOS.at(i);
+  }
+  IntegerMatrix get_OMS(int i){
+    return OMS.at(i);
+  }
+  IntegerMatrix get_UOMS(int i){
+    return UOMS.at(i);
+  }
+  NumericMatrix get_DBL(int i){
+    return DBL.at(i);
+  }
+
+
+  //////////////////////////
+  void InitRand(){
+    int iiBOOL=0;
+    for (int i=0;i<nchrom;i++)
+      if (chromtypes[i]=="BOOL"){
+        IntegerMatrix TempMat(chromsizes[i],npop);
+        for (int j=0;j<(npop);j++){
+          TempMat(_,j)=sample(CandBOOL, chromsizes[i], true);
+        }
+        BOOL.push_back(TempMat);
+        iiBOOL++;
       }
-      int dom = dominates(points, i, j, d);
-      if (dom > 0) {
-        res[j] = true;
-      } else if (dom < 0) {
-        res[i] = true;
+      nBOOL=iiBOOL;
+
+    int iiOS=0;
+    for (int i=0;i<nchrom;i++)
+      if (chromtypes[i]=="OS"){
+        IntegerMatrix TempMat(chromsizes[i],npop);
+        for (int j=0;j<(npop);j++){
+          TempMat(_,j)=sample(CandOS.at(iiOS), chromsizes[i]);
+        }
+        OS.push_back(TempMat);
+        iiOS++;
       }
-    }
+      nOS=iiOS;
+      int iiUOS=0;
+      for (int i=0;i<nchrom;i++)
+        if (chromtypes[i]=="UOS"){
+          IntegerMatrix TempMat(chromsizes[i],(npop));
+          for (int j=0;j<(npop);j++){
+            TempMat(_,j)=sample(CandUOS.at(iiUOS), chromsizes[i]).sort();
+          }
+          UOS.push_back(TempMat);
+          iiUOS++;
+        }
+        nUOS=iiUOS;
+        int iiOMS=0;
+        for (int i=0;i<nchrom;i++)
+          if (chromtypes[i]=="OMS"){
+            IntegerMatrix TempMat(chromsizes[i],(npop));
+            for (int j=0;j<(npop);j++){
+              TempMat(_,j)=sample(CandOMS.at(iiOMS), chromsizes[i], true);
+            }
+            OMS.push_back(TempMat);
+            iiOMS++;
+          }
+          nOMS=iiOMS;
+          int iiUOMS=0;
+          for (int i=0;i<nchrom;i++)
+            if (chromtypes[i]=="UOMS"){
+              IntegerMatrix TempMat(chromsizes[i],(npop));
+              for (int j=0;j<(npop);j++){
+                TempMat(_,j)=sample(CandUOMS.at(iiUOMS), chromsizes[i], true).sort();
+              }
+              UOMS.push_back(TempMat);
+              iiUOMS++;
+            }
+            nUOMS=iiUOMS;
+            int iiDBL=0;
+            for (int i=0;i<nchrom;i++)
+              if (chromtypes[i]=="DBL"){
+                NumericMatrix TempMat(chromsizes[i],(npop));
+                for (int j=0;j<(npop);j++){
+                  TempMat(_,j)=runif(chromsizes[i])*(CandDBL.at(iiDBL)(1)-CandDBL.at(iiDBL)(0))+CandDBL.at(iiDBL)(0);
+                }
+                DBL.push_back(TempMat);
+                iiDBL++;
+              }
+              nDBL=iiDBL;
   }
 
-  return res;
-}
-
-
-
-
-IntegerVector makeonecross(const IntegerVector& x1, const IntegerVector& x2, const IntegerVector& Candidates, const double& mutprob, const double& mutintensity, const int& ntoselect) {
-  GetRNGstate();
-
-  int n = ntoselect;
-  double randnum;
-  IntegerVector x1x2 = union_(x1, x2);
-  while (x1x2.length() < n) {
-    x1x2.push_back(Rcpp::sample(Candidates, 1, false)(0));
+  void Init(vector<IntegerMatrix> BOOL_,vector<IntegerMatrix> OS_,vector<IntegerMatrix> UOS_,vector<IntegerMatrix> OMS_,vector<IntegerMatrix> UOMS_, vector<NumericMatrix>DBL_){
+    BOOL=BOOL_;
+    OS=OS_;
+    UOS=UOS_;
+    OMS=OMS_;
+    UOMS=UOMS_;
+    DBL=DBL_;
   }
-  IntegerVector cross = Rcpp::sample(x1x2, n, false);
-  for (int i = 0; i < mutintensity; i++) {
-    randnum = runif(1)(0);
-    if (randnum < mutprob) {
-      IntegerVector setdiffres = setdiff(Candidates, cross);
-      cross(Rcpp::sample(n, 1, false)(0) - 1) = Rcpp::sample(setdiffres, 1)(0);
-    }
-  }
-  PutRNGstate();
-
-  return cross.sort();
 
 
-}
 
-int contains(const StringVector& X, const StringVector& z) {
-  int out;
-  if (std::find(X.begin(), X.end(), z(0)) != X.end()) {
-    out = 1L;
-  } else {
-    out = 0L;
-  }
-  return out;
-}
 
-IntegerVector makeonecrossOrdered(const IntegerVector& x1, const IntegerVector& x2, const IntegerVector& Candidates, const double& mutprob, const double& mutintensity, const int& ntoselect, const int& maxswaplength = 4) {
-  GetRNGstate();
-  double randnum;
-  IntegerVector pos;
-
-  int n = ntoselect;
-  IntegerVector cross(n);
-  int breakpoint = sample(n, 1, false)(0);
-  for (int i = 0; i < n; i++) {
-    if ((i + 1) <= breakpoint) {
-      cross(i) = x1(i);
-    } else {
-      cross(i) = x2(i);
-    }
-  }
-  int N = Candidates.length();
-  for (int i = 0; i < mutintensity; i++) {
-    randnum = runif(1)(0);
-    if (randnum < .5 * mutprob) {
-      cross(Rcpp::sample(n, 1, false)(0) - 1) = Candidates(Rcpp::sample(N, 1, false)(0) - 1);
-    }
-  }
-  for (int i = 0; i < mutintensity; i++) {
-    randnum = runif(1)(0);
-    if (randnum < .5 * mutprob) {
-      pos = Rcpp::sample(n, 2, false) - 1;
-      if (abs(pos(0) - pos(1)) < maxswaplength) {
-        cross(pos(0)) = cross(pos(1));
+  void MoveInd(int from, int to){
+    if (nBOOL>0){
+      for (int i=0;i<nBOOL;i++){
+        BOOL.at(i)(_, to)=BOOL.at(i)(_, from);
       }
     }
-  }
-  PutRNGstate();
 
-  return cross;
-}
-
-IntegerMatrix GenerateCrossesfromElites(const IntegerMatrix& Elites, const IntegerVector& Candidates, const int& ntoselect, const int& npop, const double& mutprob, const int& mutintensity) {
-
-  IntegerMatrix newcrosses(ntoselect, npop);
-  int nelite = Elites.ncol();
-
-  for (int i = 0; i < npop; ++i) {
-    newcrosses(_, i) = makeonecross(Elites(_, Rcpp::sample(nelite, 1)(0) - 1), Elites(_, Rcpp::sample(nelite, 1)(0) - 1), Candidates, mutprob, mutintensity, ntoselect);
-  }
-  return newcrosses;
-}
-
-IntegerMatrix GenerateCrossesfromElitesOrdered(const IntegerMatrix& Elites, const IntegerVector& Candidates, const int& ntoselect, const int& npop, const double& mutprob, const int& mutintensity) {
-  IntegerMatrix newcrosses(ntoselect, npop);
-  int nelite = Elites.ncol();
-
-  for (int i = 0; i < npop; ++i) {
-    newcrosses(_, i) = makeonecrossOrdered(Elites(_, Rcpp::sample(nelite, 1)(0) - 1), Elites(_, Rcpp::sample(nelite, 1)(0) - 1), Candidates, mutprob, mutintensity, ntoselect, 4);
-  }
-  return newcrosses;
-}
-
-List ExchangeMO(Rcpp::Function Stat, const Rcpp::List& Data, const Rcpp::IntegerVector& s0, const Rcpp::NumericMatrix& PopSolValues, int niter, const Rcpp::IntegerVector& Candidates) {
-
-
-  IntegerVector toreplace(1);
-  IntegerVector totakeout(1);
-
-  NumericVector f0 = Rcpp::as<NumericVector>(Stat(s0, Data));
-  IntegerVector sc = clone(s0);
-  IntegerVector Tempsol = clone(s0);
-  NumericVector fc = f0;
-  NumericVector fTempsol = f0;
-  GetRNGstate();
-
-  for (int k = 0; k < niter - 1; k++) {
-    toreplace = Rcpp::sample(setdiff(Candidates, sc), 1);
-
-    totakeout = Rcpp::sample(sc, 1);
-
-    Tempsol = setdiff(sc, totakeout);
-
-    Tempsol.push_back(toreplace(0));
-    fTempsol = Rcpp::as<NumericVector>(Stat(Tempsol, Data));
-
-    if (whichRcpp(!do_is_dominated(cbind(cbind(fTempsol, fc), PopSolValues)))(0) == 0) {
-      sc = clone(Tempsol);
-      fc = clone(fTempsol);
+    if (nOS>0){
+      for (int i=0;i<nOS;i++){
+        OS.at(i)(_, to)=OS.at(i)(_, from);
+      }
     }
-
-  }
-  PutRNGstate();
-
-  return Rcpp::List::create(Rcpp::Named("iterations") = niter, Rcpp::Named("best_value") = fc, Rcpp::Named("best_state") = sc);
-
-}
-
-List ExchangeOrderedMO(Rcpp::Function Stat, const Rcpp::List& Data, const Rcpp::IntegerVector& s0, const Rcpp::NumericMatrix& PopSolValues, const Rcpp::IntegerVector& Candidates, int niter) {
-
-  IntegerVector toreplace(1);
-  NumericVector f0 = Rcpp::as<NumericVector>(Stat(s0, Data));
-  IntegerVector sc = clone(s0);
-  IntegerVector Tempsol = clone(s0);
-  NumericVector fc = f0;
-  NumericVector fTempsol = f0;
-  GetRNGstate();
-
-  for (int k = 0; k < niter - 1; k++) {
-
-    toreplace(0) = Rcpp::sample(Candidates, 1, false)(0);
-
-    Tempsol = clone(sc);
-    Tempsol[Rcpp::sample(Tempsol.length(), 1, false)(0) - 1] = toreplace(0);
-
-
-    fTempsol = Rcpp::as<NumericVector>(Stat(Tempsol, Data));
-
-    if (whichRcpp(!do_is_dominated(cbind(cbind(fTempsol, fc), PopSolValues)))(0) == 0) {
-      sc = clone(Tempsol);
-      fc = clone(fTempsol);
-
+    if (nUOS>0){
+      for (int i=0;i<nUOS;i++){
+        UOS.at(i)(_, to)=UOS.at(i)(_, from);
+      }
     }
-
-  }
-
-  PutRNGstate();
-
-  return Rcpp::List::create(Rcpp::Named("iterations") = niter, Rcpp::Named("best_value") = fc, Rcpp::Named("best_state") = sc);
-
-}
-
-List SANNMOO(Rcpp::Function Stat, const Rcpp::List& Data, const Rcpp::IntegerVector& s0, const Rcpp::NumericMatrix& PopSolValues, int niter, double step, const Rcpp::IntegerVector& Candidates) {
-
-  double Temp;
-  IntegerVector toreplace;
-  IntegerVector totakeout;
-  IntegerVector Tempsol;
-
-  IntegerVector s_b = s0;
-  IntegerVector s_c = s0;
-  IntegerVector s_n = s0;
-
-
-  NumericVector f_b = Rcpp::as<NumericVector>(Stat(s_n, Data));
-  NumericVector f_c = f_b;
-  NumericVector f_n = f_b;
-  GetRNGstate();
-
-  for (int k = 0; k < niter - 1; k++) {
-
-
-    Temp = powf(1 - step / log(niter + 1), k);
-
-    toreplace = sample(setdiff(Candidates, s_c), 1);
-    totakeout = sample(s_c, 1);
-
-    Tempsol = setdiff(s_c, totakeout);
-    Tempsol.push_back(toreplace(0));
-    s_n = clone(Tempsol);
-    f_n = Rcpp::as<NumericVector>(Stat(s_n, Data));
-
-    if ((whichRcpp(!do_is_dominated(cbind(cbind(f_n, f_c), PopSolValues)))(0) == 0) | (runif(1, 0, 1)(0) < exp(-crossprodRcpp(f_n - f_c, f_n - f_c) / Temp))) {
-      s_c = clone(s_n);
-      f_c = f_n;
+    if (nOMS>0){
+      for (int i=0;i<nOMS;i++){
+        OMS.at(i)(_, to)=OMS.at(i)(_, from);
+      }
     }
-    if (whichRcpp(!do_is_dominated(cbind(cbind(f_n, f_b), PopSolValues)))(0) == 0) {
-
-      s_b = clone(s_n);
-      f_b = f_n;
-
+    if (nUOMS>0){
+      for (int i=0;i<nUOMS;i++){
+        UOMS.at(i)(_, to)=UOMS.at(i)(_, from);
+      }
     }
-    if (Temp < 1e-30) {
-      break;
+    if (nDBL>0){
+      for (int i=0;i<nDBL;i++){
+        DBL.at(i)(_, to)=DBL.at(i)(_, from);
+      }
     }
   }
-  PutRNGstate();
-
-  return Rcpp::List::create(Rcpp::Named("iterations") = niter, Rcpp::Named("best_value") = f_b, Rcpp::Named("best_state") = s_b);
-
-}
-
-List SANNOrderedMOO(Rcpp::Function Stat, const Rcpp::List& Data, const Rcpp::IntegerVector& s0, const Rcpp::NumericMatrix& PopSolValues, const Rcpp::IntegerVector& Candidates, int niter, double step) {
-  double Temp;
-  IntegerVector toreplace(1);
-  IntegerVector toreplace1(1);
-  IntegerVector toreplace2(1);
-  IntegerVector pos1(1);
-  IntegerVector pos2(1);
-
-  IntegerVector totakeout;
-  IntegerVector Tempsol;
-  IntegerVector s_b = clone(s0);
-  IntegerVector s_c = clone(s0);
-  IntegerVector s_n = clone(s0);
 
 
-  NumericVector f_b = Rcpp::as<NumericVector>(Stat(s_n, Data));
-  NumericVector f_c = f_b;
-  NumericVector f_n = f_b;
-  GetRNGstate();
 
-  for (int k = 0; k < niter - 1; k++) {
-    Temp = powf(1 - step / log(niter + 1), k);
+  void MakeCross(int p1, int p2, int child){
 
-    toreplace = sample(Candidates, 1, false);
-    Tempsol = clone(s_c);
-    Tempsol[sample(Tempsol.length(), 1, false)(0) - 1] = toreplace(0);
+    if (nBOOL>0){
+      for (int i=0;i<nBOOL;i++){
+        int BOOLirows=BOOL.at(i).nrow();
 
-    if (runif(1)(0) < .5) {
-      pos1 = sample(Tempsol.length(), 1, false)(0) - 1;
-      pos2 = sample(Tempsol.length(), 1, false)(0) - 1;
-      toreplace1 = Tempsol[pos1(0)];
-      toreplace2 = Tempsol[pos2(0)];
-      Tempsol[pos1(0)] = toreplace2(0);
-      Tempsol[pos2(0)] = toreplace1(0);
+        IntegerVector TempSol;
+        for (int j=0;j<BOOLirows;j++){
+          int sampleint=sample(2,1)[0];
+
+          if (sampleint==1){
+            TempSol.push_back(BOOL.at(i)(j,p1));
+          } else {
+            TempSol.push_back(BOOL.at(i)(j,p2));
+          }
+        }
+        BOOL.at(i)(_,child)=TempSol;
+      }
     }
-    s_n = clone(Tempsol);
-    f_n = Rcpp::as<NumericVector>(Stat(s_n, Data));
-    if ((whichRcpp(!do_is_dominated(cbind(cbind(f_n, f_c), PopSolValues)))(0) == 0) | (runif(1, 0, 1)(0) < exp(-crossprodRcpp(f_n - f_c, f_n - f_c) / Temp))) {
-      s_c = clone(s_n);
-      f_c = f_n;
+
+
+    if (nOS>0){
+      for (int i=0;i<nOS;i++){
+        int OSirows=OS.at(i).nrow();
+
+        IntegerVector TempSol;
+        for (int j=0;j<OSirows;j++){
+          int sampleint=sample(2,1)[0];
+
+          if (sampleint==1 && !contains(TempSol,OS.at(i)(j,p1))){
+            TempSol.push_back(OS.at(i)(j,p1));
+          } else if (sampleint==2 && !contains(TempSol,OS.at(i)(j,p2))){
+            TempSol.push_back(OS.at(i)(j,p2));
+          } else {
+            TempSol.push_back(sample(setdiff(CandOS.at(i),TempSol),1)[0]);
+          }
+        }
+        OS.at(i)(_,child)=TempSol;
+      }
     }
-    if (whichRcpp(!do_is_dominated(cbind(cbind(f_n, f_b), PopSolValues)))(0) == 0) {
-      s_b = clone(s_n);
-      f_b = f_n;
+
+    if (nUOS>0){
+      for (int i=0;i<nUOS;i++){
+        int UOSirows=UOS.at(i).nrow();
+        IntegerVector p1vec=UOS.at(i)(_,p1);
+        IntegerVector p2vec=UOS.at(i)(_,p2);
+        UOS.at(i)(_,child)=sample(union_(p1vec,p2vec),UOSirows, false).sort();
+      }
     }
-    if (Temp < 1e-30) {
-      break;
+
+    if (nOMS>0){
+      for (int i=0;i<nOMS;i++){
+        int OMSirows=OMS.at(i).nrow();
+        IntegerVector TempSol;
+        for (int j=0;j<OMSirows;j++){
+          int sampleint=sample(2,1)[0];
+          if (sampleint==1){
+            TempSol.push_back(OMS.at(i)(j,p1));
+          } else{
+            TempSol.push_back(OMS.at(i)(j,p2));
+          }
+        }
+        OMS.at(i)(_,child)=TempSol;
+      }
+    }
+
+    if (nUOMS>0){
+      for (int i=0;i<nUOMS;i++){
+        int UOMSirows=UOMS.at(i).nrow();
+        IntegerVector TempSol;
+        for (int j=0;j<UOMSirows;j++){
+          TempSol.push_back(UOMS.at(i)(j,p1));
+          TempSol.push_back(UOMS.at(i)(j,p2));
+        }
+        UOMS.at(i)(_,child)=sample(TempSol, UOMSirows, true).sort();
+      }
+    }
+
+    if (nDBL>0){
+      for (int i=0;i<nDBL;i++){
+        int DBLirows=DBL.at(i).nrow();
+        NumericVector TempSol;
+        for (int j=0;j<DBLirows;j++){
+          TempSol.push_back(.5*(DBL.at(i)(j,p1)+DBL.at(i)(j,p2)));
+        }
+        DBL.at(i)(_,child)=TempSol;
+      }
+    }
+
+  }
+
+
+  void  Mutate(int ind, double MUTPROB){
+
+    if (nBOOL>0){
+      for (int i=0;i<nBOOL;i++){
+        int BOOLirows=BOOL.at(i).nrow();
+        IntegerVector IndSol=BOOL.at(i)(_,ind);
+        for (int j=0;j<BOOLirows;j++){
+          double mutp=runif(1)(0);
+          if (mutp<MUTPROB){
+            IntegerVector totakeout;
+            totakeout.push_back(IndSol(j));
+            int replacement=sample(setdiff(CandBOOL,totakeout),1)(0);
+            IndSol(j)=replacement;
+          }
+        }
+
+        BOOL.at(i)(_,ind)=IndSol;
+      }
+
+    }
+
+
+    if (nOS>0){
+      for (int i=0;i<nOS;i++){
+        int OSirows=OS.at(i).nrow();
+        IntegerVector IndSol=OS.at(i)(_,ind);
+        for (int j=0;j<OSirows;j++){
+          double mutp=runif(1)(0);
+          if (mutp<MUTPROB){
+            IntegerVector totakeout;
+            totakeout.push_back(IndSol(j));
+            int replacement=sample(setdiff(CandOS.at(i),setdiff(IndSol,totakeout)),1)(0);
+            IndSol(j)=replacement;
+          }
+        }
+        double swapp=runif(1)(0);
+        if (swapp<MUTPROB){
+          int i1=sample(OSirows,1)(0)-1;
+          int i2=sample(OSirows,1)(0)-1;
+          int ii1=IndSol(i1);
+          int ii2=IndSol(i2);
+
+          IndSol(i1)= ii2;
+          IndSol(i2)= ii1;
+
+        }
+
+        double slidep=runif(1)(0);
+        if (slidep<MUTPROB){
+          int movedirection=sample(2,1)(0);
+          if (movedirection==1){
+            std::rotate(IndSol.begin(), IndSol.begin() + 1, IndSol.end());
+          } else{
+            std::rotate(IndSol.begin(), IndSol.end(), IndSol.end());
+          }
+        }
+        OS.at(i)(_,ind)=IndSol;
+      }
+
+    }
+
+    if (nUOS>0){
+      for (int i=0;i<nUOS;i++){
+        int UOSirows=UOS.at(i).nrow();
+        IntegerVector IndSol=UOS.at(i)(_,ind);
+        for (int j=0;j<UOSirows;j++){
+          double mutp=runif(1)(0);
+          if (mutp<MUTPROB){
+            int replacement=sample(setdiff(CandUOS.at(i),IndSol),1)(0);
+            IndSol(j)=replacement;
+          }
+        }
+        UOS.at(i)(_,ind)=IndSol.sort();
+      }
+    }
+
+    if (nOMS>0){
+      for (int i=0;i<nOMS;i++){
+        int OMSirows=OMS.at(i).nrow();
+        IntegerVector IndSol=OMS.at(i)(_,ind);
+        for (int j=0;j<OMSirows;j++){
+          double mutp=runif(1)(0);
+          if (mutp<MUTPROB){
+            int replacement=sample(CandOMS.at(i),1)(0);
+            IndSol(j)=replacement;
+          }
+        }
+        double swapp=runif(1)(0);
+        if (swapp<MUTPROB){
+          int i1=sample(OMSirows,1)(0)-1;
+          int i2=sample(OMSirows,1)(0)-1;
+          int ii1=IndSol(i1);
+          int ii2=IndSol(i2);
+
+          IndSol(i1)= ii2;
+          IndSol(i2)= ii1;
+
+        }
+
+        double slidep=runif(1)(0);
+        if (slidep<MUTPROB){
+          int movedirection=sample(2,1)(0);
+          if (movedirection==1){
+            std::rotate(IndSol.begin(), IndSol.begin() + 1, IndSol.end());
+          } else{
+            std::rotate(IndSol.begin(), IndSol.end(), IndSol.end());
+          }
+        }
+        OMS.at(i)(_,ind)=IndSol;
+      }
+
+    }
+
+
+    if (nUOMS>0){
+      for (int i=0;i<nUOMS;i++){
+        int UOMSirows=UOMS.at(i).nrow();
+        IntegerVector IndSol=UOMS.at(i)(_,ind);
+        for (int j=0;j<UOMSirows;j++){
+          double mutp=runif(1)(0);
+          if (mutp<MUTPROB){
+            int replacement=sample(CandUOMS.at(i),1)(0);
+            IndSol(j)=replacement;
+          }
+        }
+        UOMS.at(i)(_,ind)=IndSol.sort();
+      }
+    }
+    if (nDBL>0){
+      for (int i=0;i<nDBL;i++){
+        int DBLirows=DBL.at(i).nrow();
+        NumericVector IndSol=DBL.at(i)(_,ind);
+        for (int j=0;j<DBLirows;j++){
+          double mutp=runif(1)(0);
+          double tempsold;
+          if (mutp<MUTPROB){
+            tempsold=IndSol[j]+rnorm(1)(0)*sd(DBL.at(i)(j,_))*.01;
+            if (tempsold<CandDBL.at(i)(0)){tempsold=tempsold<CandDBL.at(i)(0);}
+            if (tempsold>CandDBL.at(i)(1)){tempsold=tempsold<CandDBL.at(i)(1);}
+
+            IndSol[j]=tempsold;
+          }
+        }
+        DBL.at(i)(_,ind)=IndSol;
+      }
+    }
+
+  }
+
+
+  ///
+
+
+
+  IntegerVector getSolnInt(int ind){
+    IntegerVector soln;
+    int iBOOL=0;
+    int iOS=0;
+    int iUOS=0;
+    int iOMS=0;
+    int iUOMS=0;
+    for (int i=0;i<chromsizes.length();i++){
+      if (chromtypes[i]=="BOOL"){
+        for (int j=0;j<chromsizes[i];j++){
+          soln.push_back(BOOL.at(iBOOL)(j,ind));
+        }
+        iBOOL++;
+      }
+
+      if (chromtypes[i]=="OS"){
+        for (int j=0;j<chromsizes[i];j++){
+          soln.push_back(OS.at(iOS)(j,ind));
+        }
+        iOS++;
+      }
+      if (chromtypes[i]=="UOS"){
+        for (int j=0;j<chromsizes[i];j++){
+
+          soln.push_back(UOS.at(iUOS)(j,ind));
+        }
+        iUOS++;
+      }
+      if (chromtypes[i]=="OMS"){
+        for (int j=0;j<chromsizes[i];j++){
+          soln.push_back(OMS.at(iOMS)(j,ind));
+        }
+        iOMS++;
+      }
+      if (chromtypes[i]=="UOMS"){
+        for (int j=0;j<chromsizes[i];j++){
+          soln.push_back(UOMS.at(iUOMS)(j,ind));
+        }
+        iUOMS++;
+      }
+    }
+    return soln;
+  }
+
+
+
+
+  IntegerMatrix getSolnInt(IntegerVector inds){
+
+
+    int ind=inds[0];
+    IntegerVector soln;
+    int iBOOL=0;
+    int iOS=0;
+    int iUOS=0;
+    int iOMS=0;
+    int iUOMS=0;
+    for (int i=0;i<chromsizes.length();i++){
+      if (chromtypes[i]=="BOOL"){
+        for (int j=0;j<chromsizes[i];j++){
+          soln.push_back(BOOL.at(iBOOL)(j,ind));
+        }
+        iBOOL++;
+      }
+      if (chromtypes[i]=="OS"){
+        for (int j=0;j<chromsizes[i];j++){
+          soln.push_back(OS.at(iOS)(j,ind));
+        }
+        iOS++;
+      }
+      if (chromtypes[i]=="UOS"){
+        for (int j=0;j<chromsizes[i];j++){
+
+          soln.push_back(UOS.at(iUOS)(j,ind));
+        }
+        iUOS++;
+      }
+      if (chromtypes[i]=="OMS"){
+        for (int j=0;j<chromsizes[i];j++){
+          soln.push_back(OMS.at(iOMS)(j,ind));
+        }
+        iOMS++;
+      }
+      if (chromtypes[i]=="UOMS"){
+        for (int j=0;j<chromsizes[i];j++){
+          soln.push_back(UOMS.at(iUOMS)(j,ind));
+        }
+        iUOMS++;
+      }
+    }
+
+    IntegerMatrix solnmat(soln.length(),inds.length());
+    solnmat.column(0)=soln;
+    for (int indi=1;indi<inds.length();indi++){
+      int ind=inds[indi];
+      IntegerVector soln;
+      int iBOOL=0;
+
+      int iOS=0;
+      int iUOS=0;
+      int iOMS=0;
+      int iUOMS=0;
+      for (int i=0;i<chromsizes.length();i++){
+        if (chromtypes[i]=="BOOL"){
+          for (int j=0;j<chromsizes[i];j++){
+            soln.push_back(BOOL.at(iBOOL)(j,ind));
+          }
+          iBOOL++;
+        }
+
+        if (chromtypes[i]=="OS"){
+          for (int j=0;j<chromsizes[i];j++){
+            soln.push_back(OS.at(iOS)(j,ind));
+          }
+          iOS++;
+        }
+        if (chromtypes[i]=="UOS"){
+          for (int j=0;j<chromsizes[i];j++){
+
+            soln.push_back(UOS.at(iUOS)(j,ind));
+          }
+          iUOS++;
+        }
+        if (chromtypes[i]=="OMS"){
+          for (int j=0;j<chromsizes[i];j++){
+            soln.push_back(OMS.at(iOMS)(j,ind));
+          }
+          iOMS++;
+        }
+        if (chromtypes[i]=="UOMS"){
+          for (int j=0;j<chromsizes[i];j++){
+            soln.push_back(UOMS.at(iUOMS)(j,ind));
+          }
+          iUOMS++;
+        }
+      }
+      solnmat.column(indi)=soln;
+    }
+    return solnmat;
+  }
+
+
+
+
+
+
+  void putSolnInt(int ind, IntegerVector soln){
+    int iBOOL=0;
+
+    int iOS=0;
+    int iUOS=0;
+    int iOMS=0;
+    int iUOMS=0;
+    int jj=0;
+    for (int i=0;i<chromsizes.length();i++){
+      if (chromtypes[i]=="BOOL"){
+        for (int j=0;j<chromsizes[i];j++){
+          BOOL.at(iBOOL)(j,ind)=soln(jj);
+          jj++;
+        }
+        iBOOL++;
+      }
+
+      if (chromtypes[i]=="OS"){
+        for (int j=0;j<chromsizes[i];j++){
+          OS.at(iOS)(j,ind)=soln(jj);
+          jj++;
+        }
+        iOS++;
+      }
+      if (chromtypes[i]=="UOS"){
+        for (int j=0;j<chromsizes[i];j++){
+
+          UOS.at(iUOS)(j,ind)=soln[jj];
+          jj++;
+        }
+        IntegerVector TempVec=UOS.at(iUOS)(_,ind);
+        TempVec.sort();
+        UOS.at(iUOS)(_,ind)=TempVec;
+        iUOS++;
+      }
+      if (chromtypes[i]=="OMS"){
+        for (int j=0;j<chromsizes[i];j++){
+          OMS.at(iOMS)(j,ind)=soln[jj];
+          jj++;
+        }
+        iOMS++;
+      }
+      if (chromtypes[i]=="UOMS"){
+        for (int j=0;j<chromsizes[i];j++){
+          UOMS.at(iUOMS)(j,ind)=soln[jj];
+          jj++;
+        }
+        IntegerVector TempVec=UOMS.at(iUOMS)(_,ind);
+        TempVec.sort();
+        UOS.at(iUOMS)(_,ind)=TempVec;
+        iUOMS++;
+      }
     }
   }
-  PutRNGstate();
-
-  return Rcpp::List::create(Rcpp::Named("iterations") = niter, Rcpp::Named("best_value") = f_b, Rcpp::Named("best_state") = s_b);
-
-}
 
 
+  NumericVector getSolnDbl(int ind){
+    NumericVector soln;
+    int iDBL=0;
+    for (int i=0;i<chromsizes.length();i++){
+      if (chromtypes[i]=="DBL"){
+        for (int j=0;j<chromsizes[i];j++){
+          soln.push_back(DBL.at(iDBL)(j,ind));
+        }
+        iDBL++;
+      }
+    }
+    return soln;
+  }
 
 
 
+  NumericMatrix getSolnDbl(IntegerVector inds){
+
+    int ind=inds[0];
+    NumericVector soln;
+    int iDBL=0;
+    for (int i=0;i<chromsizes.length();i++){
+      if (chromtypes[i]=="DBL"){
+        for (int j=0;j<chromsizes[i];j++){
+          soln.push_back(DBL.at(iDBL)(j,ind));
+        }
+        iDBL++;
+      }
+    }
+    NumericMatrix solnmat(soln.length(),inds.length());
+    solnmat.column(0)=soln;
+    for (int indi=1;indi<inds.length();indi++){
+      int ind=inds[indi];
+      NumericVector soln;
+      int iDBL=0;
+      for (int i=0;i<chromsizes.length();i++){
+        if (chromtypes[i]=="DBL"){
+          for (int j=0;j<chromsizes[i];j++){
+            soln.push_back(DBL.at(iDBL)(j,ind));
+          }
+          iDBL++;
+        }
+      }
+      solnmat.column(indi)=soln;
+
+    }
+    return solnmat;
+  }
+
+
+
+
+
+
+  void putSolnDbl(int ind, NumericVector soln){
+    int iDBL=0;
+    int jj=0;
+    for (int i=0;i<chromsizes.length();i++){
+      if (chromtypes[i]=="DBL"){
+        for (int j=0;j<chromsizes[i];j++){
+          DBL.at(iDBL)(j,ind)=soln[jj];
+          jj++;
+        }
+        iDBL++;
+      }
+    }
+  }
+
+  ///////////
+
+
+  void set_STATCLASS(STATCLASSMOO STATC_){
+    StatClass=STATC_;
+  }
+
+
+  void init_Fitness(){
+    FitnessVals =NumericMatrix(StatClass.numstat,npop);
+  }
+
+  void set_Fitness(int ind, Function Stat){
+    if (nDBL>0){
+      FitnessVals(_, ind)=StatClass.GetStat(getSolnInt(ind),getSolnDbl(ind), Stat);
+    } else {
+      FitnessVals(_, ind)=StatClass.GetStat(getSolnInt(ind), Stat);
+    }
+  }
+  void set_Fitness(int ind, NumericVector val){
+    FitnessVals(_, ind)=val;
+  }
+
+
+  NumericVector get_Fitness(int ind, Function Stat){
+    NumericVector out;
+    if (nDBL>0){
+      out=StatClass.GetStat(getSolnInt(ind),getSolnDbl(ind), Stat);
+    } else {
+      out=StatClass.GetStat(getSolnInt(ind), Stat);
+    }
+    return out;
+  }
+
+
+  NumericVector get_Fitness(IntegerVector soln_int, NumericVector soln_dbl, Function Stat){
+    NumericVector out;
+    if (nDBL>0){
+      out=StatClass.GetStat(soln_int,soln_dbl, Stat);
+    } else {
+      out=StatClass.GetStat(soln_int, Stat);
+    }
+    return StatClass.GetStat(soln_int,soln_dbl, Stat);
+  }
+
+  NumericMatrix get_Fitness(){
+    return FitnessVals;
+  }
+
+  NumericVector get_Fitness(int i){
+    return FitnessVals(_, i);
+  }
+
+  NumericMatrix get_Fitness(IntegerVector inds){
+    return subcolNM(FitnessVals, inds);
+  }
+
+};
+
+
+
+
+
+
+
+
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+class OutTrainSelMOO {
+public:
+  IntegerMatrix Best_Sols_Int;
+  NumericMatrix Best_Sols_DBL;
+  NumericMatrix Best_Vals;
+
+
+
+  OutTrainSelMOO(List Data,
+                 List CANDIDATES,
+                 Rcpp::IntegerVector setsizes,
+                 Rcpp::CharacterVector settypes,
+                 Rcpp::Function Stat,
+                 int nstat,
+                 List control) {
+
+
+    int NPOP = as<int>(control["npop"]);
+    int NITERGA = as<int>(control["niterations"]);
+    double MUTPROB = as<double>(control["mutprob"]);
+    bool PROGRESS = as<bool>(control["progress"]);
+
+
+    bool maxiter = false;
+
+    bool CheckData = false;
+    if (Data.size() > 0) {
+      CheckData = true;
+    }
+
+
+
+    /////errors
+
+
+    STATCLASSMOO STATc;
+
+    ///
+    if (!CheckData) {
+      STATc = STATCLASSMOO();
+
+    }
+
+    if (CheckData) {
+
+      STATc = STATCLASSMOO(Data);
+
+    }
+
+    STATc.numstat=nstat;
+
+
+    ////////////////
+
+    PopulationMOO  pop;
+    pop.set_npop(NPOP);
+
+
+    pop.set_nchrom(setsizes.length());
+    pop.set_chromsizes(setsizes);
+    pop.set_chromtypes(settypes);
+    for (int i=0;i<pop.get_nchrom();i++){
+      if (settypes[i]=="OS"){
+        pop.push_back_CandOS(as<IntegerVector>(CANDIDATES[i]));
+      }
+      if (settypes[i]=="UOS"){
+        pop.push_back_CandUOS(as<IntegerVector>(CANDIDATES[i]));
+
+      }
+      if (settypes[i]=="OMS"){
+        pop.push_back_CandOMS(as<IntegerVector>(CANDIDATES[i]));
+      }
+      if (settypes[i]=="UOMS"){
+        pop.push_back_CandUOMS(as<IntegerVector>(CANDIDATES[i]));
+      }
+      if (settypes[i]=="DBL"){
+        pop.push_back_CandDBL(as<NumericVector>(CANDIDATES[i]));
+      }
+    }
+
+
+
+    pop.set_STATCLASS(STATc);
+
+    pop.init_Fitness();
+
+    pop.InitRand();
+
+    for (int i=0;i<pop.get_npop();i++){
+
+      pop.set_Fitness(i, Stat);
+
+    }
+
+    int Generation = 0;
+    Progress p(NITERGA, PROGRESS);
+    LogicalVector dominatedbool=do_is_dominated(pop.get_Fitness());
+    LogicalVector duplicated = duplicatedRcpp(transpose(pop.get_Fitness()));
+
+    IntegerVector bestsols =  whichRcpp((!dominatedbool & ! duplicated));
+    IntegerVector worstsols = whichRcpp((dominatedbool | duplicated));
+
+
+
+
+    while (!maxiter) {
+
+//thinning
+      if (worstsols.length()<5){
+        /**NumericVector prob(pop.get_npop());
+
+        for (int i=0;i<pop.get_npop();i++){
+          std::fill(prob.begin(),prob.end(),1);
+          for (int i=0;i<pop.get_Fitness().nrow();i++){
+            double mean_E =sum(pop.get_Fitness()(i,_))/pop.get_npop();
+            double sd_E=sd(pop.get_Fitness()(i,_));
+            for (int j=0;j<pop.get_npop();j++){
+              double x=pop.get_Fitness()(i,j);
+              NumericVector xvec={x};
+              prob[j]=prob[j]*(10+Rcpp::dnorm(xvec,mean_E,sd_E+1e-6,false)[0]);
+            }
+          }
+        }
+        worstsols=sample(bestsols,5, false, prob);
+        **/
+        worstsols=sample(bestsols,5, false);
+
+        bestsols=setdiff(bestsols,worstsols);
+      }
+      if (bestsols.length()<5){
+        /** NumericVector prob(pop.get_npop());
+        for (int i=0;i<pop.get_npop();i++){
+          std::fill(prob.begin(),prob.end(),1);
+          for (int i=0;i<pop.get_Fitness().nrow();i++){
+            double mean_E =sum(pop.get_Fitness()(i,_))/pop.get_npop();
+            double sd_E=sd(pop.get_Fitness()(i,_));
+            for (int j=0;j<pop.get_npop();j++){
+              double x=pop.get_Fitness()(i,j);
+              NumericVector xvec={x};
+              prob[j]=prob[j]*1/(10+Rcpp::dnorm(xvec,mean_E,sd_E+1e-6,false)[0]);
+            }
+          }
+        }
+        bestsols=sample(worstsols,5, false, prob);
+         **/
+        bestsols=sample(worstsols,5, false);
+
+        worstsols=setdiff(worstsols,bestsols);
+      }
+
+      p.increment();
+      R_CheckUserInterrupt();
+      Generation++;
+      if (Generation == NITERGA) {
+        Rcout << "Maximum number of iterations reached." << std::endl;
+        maxiter = true;
+      }
+
+      Best_Vals=pop.get_Fitness(bestsols);
+      for (int i=0;i<worstsols.length();i++){
+        NumericVector prob(bestsols.length());
+        std::fill(prob.begin(),prob.end(),1);
+        for (int i=0;i<Best_Vals.nrow();i++){
+          double mean_E =sum(Best_Vals(i,_))/bestsols.length();
+          double sd_E=sd(Best_Vals(i,_));
+          for (int j=0;j<bestsols.length();j++){
+            double x=Best_Vals(i,j);
+            NumericVector xvec={x};
+            prob[j]=prob[j]*1/(10+Rcpp::dnorm(xvec,mean_E,sd_E+1e-6,false)[0]);
+          }
+        }
+
+        int p1=sample(bestsols,1, false, prob)(0);
+        int p2=sample(bestsols,1, false, prob)(0);
+        pop.MakeCross(p1,p2,worstsols[i]);
+        pop.Mutate(worstsols[i],MUTPROB);
+        pop.set_Fitness(worstsols[i], Stat);
+      }
+
+      dominatedbool=do_is_dominated(pop.get_Fitness());
+      duplicated = duplicatedRcpp(transpose(pop.get_Fitness()));
+
+      bestsols =  whichRcpp((!dominatedbool & ! duplicated));
+      worstsols = whichRcpp((dominatedbool | duplicated));
+
+
+    }
+
+    Best_Sols_Int=pop.getSolnInt(bestsols);
+    Best_Sols_DBL=pop.getSolnDbl(bestsols);
+    Best_Vals=pop.get_Fitness(bestsols);
+
+
+
+
+  }
+
+  List getSol() {
+    return Rcpp::List::create(Rcpp::Named("BestSol_int") = Best_Sols_Int,
+                              Rcpp::Named("BestSol_DBL") =  Best_Sols_DBL,
+                              Rcpp::Named("BestVal") =Best_Vals
+    );
+  }
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 
 
 // [[Rcpp::export]]
+List TrainSelCMOO(List Data,
+                  List CANDIDATES,
+                  Rcpp::IntegerVector setsizes,
+                  Rcpp::CharacterVector settypes,
+                  Rcpp::Function Stat,
+                  int  nstat,
+                  List control) {
+
+  OutTrainSelMOO out(Data,
+                     CANDIDATES,
+                     setsizes,
+                     settypes,
+                     Stat,
+                     nstat,
+                     control);
+  return out.getSol();
 
-List SelectSetMO(const Rcpp::List& Data, const Rcpp::IntegerVector& Candidates, int ntoselect,
-                 const Rcpp::Function selectionstat, int nstats, bool Ordered, int npopGA = 100,
-                 double mutprob = .8, int mutintensity = 1, int nitGA = 500, int minlengthfrontier = 5,
-                 int niterExc = 0,
-                 int niterSANN = 0,
-                 double stepSANN = 1e-1,
-                 bool display_progress = true) {
-  if (!Ordered) {
-    IntegerMatrix CurrentPop(ntoselect, npopGA);
-    NumericMatrix CurrentPopFuncValues(nstats, npopGA);
-    IntegerVector frontier3;
-    IntegerVector posCand(ntoselect);
-    NumericVector statout(nstats);
-    IntegerMatrix CurrentPopandElitePop;
-    NumericMatrix CurrentPopandElitePopFuncValues;
-    IntegerMatrix CurrentPopandElitePop0;
-    NumericMatrix CurrentPopandElitePopFuncValues0;
-    IntegerVector notduplicated;
-
-    int lengthfrontier = 0;
-    while (lengthfrontier < minlengthfrontier) {
-
-      for (int i = 0; i < npopGA; i++) {
-
-        RNGScope rngScope;
-        posCand = Rcpp::sample(Candidates.length(), ntoselect, false);
-        for (int j = 0; j < ntoselect; j++) {
-          CurrentPop(j, i) = Candidates(posCand(j) - 1);
-        }
-      }
-
-
-      for (int i = 0; i < npopGA; i++) {
-        statout = as<NumericVector>(selectionstat(CurrentPop(_, i), Data));
-
-        CurrentPopFuncValues(_, i) = statout;
-
-      }
-
-      frontier3 = whichRcpp(!do_is_dominated(CurrentPopFuncValues));
-      lengthfrontier = frontier3.length();
-    }
-
-
-    CurrentPopandElitePop = CurrentPop;
-    CurrentPopandElitePopFuncValues = CurrentPopFuncValues;
-    Progress p(nitGA, display_progress);
-
-    for (int iters = 0; iters < nitGA; iters++) {
-      p.increment();
-
-      IntegerMatrix ElitePop(ntoselect, lengthfrontier);
-      NumericMatrix ElitePopFuncValues(nstats, lengthfrontier);
-
-
-      for (int ii = 0; ii < lengthfrontier; ii++) {
-
-        ElitePop(_, ii) = CurrentPopandElitePop(_, frontier3(ii));
-        ElitePopFuncValues(_, ii) = CurrentPopandElitePopFuncValues(_, frontier3(ii));
-
-      }
-
-
-      if (iters == nitGA - 1) {
-        return Rcpp::List::create(Rcpp::Named("iterations") = nitGA, Rcpp::Named("ElitePopFuncValues") = ElitePopFuncValues, Rcpp::Named("ElitePop") = ElitePop);
-        terminate();
-      }
-
-
-
-      lengthfrontier = 0;
-      while (lengthfrontier < minlengthfrontier) {
-        CurrentPop = GenerateCrossesfromElites(ElitePop, Candidates, ntoselect, npopGA, mutprob, mutintensity);
-
-        for (int iii = 0; iii < npopGA; iii++) {
-          statout = as<NumericVector>(selectionstat(CurrentPop(_, iii), Data));
-          CurrentPopFuncValues(_, iii) = statout;
-        }
-
-
-
-        for (int ii = 0; ii < 5; ii++) {
-          List TMPOUT = ExchangeMO(selectionstat, Data, ElitePop(_, ii), ElitePopFuncValues, niterExc, Candidates);
-          CurrentPop(_, ii) = as<IntegerVector>(TMPOUT["best_state"]);
-          CurrentPopFuncValues(_, ii) = as<NumericVector>(TMPOUT["best_value"]);
-        }
-
-        for (int ii = 0; ii < 5; ii++) {
-          List TMPOUT = SANNMOO(selectionstat, Data, ElitePop(_, ii), ElitePopFuncValues, niterSANN, stepSANN, Candidates);
-          CurrentPop(_, ii) = as<IntegerVector>(TMPOUT["best_state"]);
-          CurrentPopFuncValues(_, ii) = as<NumericVector>(TMPOUT["best_value"]);
-        }
-
-
-
-        CurrentPopandElitePop0 = cbindIM(CurrentPop, ElitePop);
-        CurrentPopandElitePopFuncValues0 = cbindNM(CurrentPopFuncValues, ElitePopFuncValues);
-
-        notduplicated = whichRcpp(!duplicatedRcpp(transpose(CurrentPopandElitePopFuncValues0)));
-
-        CurrentPopandElitePop = subcolIM(CurrentPopandElitePop0, notduplicated);
-
-        CurrentPopandElitePopFuncValues = subcolNM(CurrentPopandElitePopFuncValues0, notduplicated);
-
-
-
-        frontier3 = whichRcpp(!do_is_dominated(CurrentPopandElitePopFuncValues));
-        lengthfrontier = frontier3.length();
-      }
-    }
-
-    return Rcpp::List::create(Rcpp::Named("iterations") = "Failed");
-  } else {
-    IntegerMatrix CurrentPop(ntoselect, npopGA);
-    NumericMatrix CurrentPopFuncValues(nstats, npopGA);
-    IntegerVector frontier3;
-    IntegerVector posCand(ntoselect);
-    NumericVector statout(nstats);
-    IntegerMatrix CurrentPopandElitePop;
-    NumericMatrix CurrentPopandElitePopFuncValues;
-    IntegerMatrix CurrentPopandElitePop0;
-    NumericMatrix CurrentPopandElitePopFuncValues0;
-    IntegerVector notduplicated;
-
-    int lengthfrontier = 0;
-    while (lengthfrontier < minlengthfrontier) {
-
-      for (int i = 0; i < npopGA; i++) {
-
-        RNGScope rngScope;
-        posCand = Rcpp::sample(Candidates.length(), ntoselect, true);
-        for (int j = 0; j < ntoselect; j++) {
-          CurrentPop(j, i) = Candidates(posCand(j) - 1);
-        }
-      }
-
-
-      for (int i = 0; i < npopGA; i++) {
-        statout = as<NumericVector>(selectionstat(CurrentPop(_, i), Data));
-
-        CurrentPopFuncValues(_, i) = statout;
-
-      }
-
-      frontier3 = whichRcpp(!do_is_dominated(CurrentPopFuncValues));
-      lengthfrontier = frontier3.length();
-    }
-
-    CurrentPopandElitePop = CurrentPop;
-    CurrentPopandElitePopFuncValues = CurrentPopFuncValues;
-
-    Progress p(nitGA, display_progress);
-
-    for (int iters = 0; iters < nitGA; iters++) {
-      p.increment();
-
-      IntegerMatrix ElitePop(ntoselect, lengthfrontier);
-      NumericMatrix ElitePopFuncValues(nstats, lengthfrontier);
-
-
-      for (int ii = 0; ii < lengthfrontier; ii++) {
-
-        ElitePop(_, ii) = CurrentPopandElitePop(_, frontier3(ii));
-        ElitePopFuncValues(_, ii) = CurrentPopandElitePopFuncValues(_, frontier3(ii));
-
-      }
-
-
-
-
-
-      if (iters == nitGA - 1) {
-        return Rcpp::List::create(Rcpp::Named("iterations") = nitGA, Rcpp::Named("ElitePopFuncValues") = ElitePopFuncValues, Rcpp::Named("ElitePop") = ElitePop);
-        terminate();
-      }
-
-
-
-
-      lengthfrontier = 0;
-      while (lengthfrontier < minlengthfrontier) {
-
-        CurrentPop = GenerateCrossesfromElitesOrdered(ElitePop, Candidates, ntoselect, npopGA, mutprob, mutintensity);
-
-        for (int iii = 0; iii < npopGA; iii++) {
-          statout = as<NumericVector>(selectionstat(CurrentPop(_, iii), Data));
-          CurrentPopFuncValues(_, iii) = statout;
-        }
-
-
-
-
-        for (int ii = 0; ii < 5; ii++) {
-          List TMPOUT = ExchangeOrderedMO(selectionstat, Data, ElitePop(_, ii), ElitePopFuncValues, Candidates, niterExc);
-          CurrentPop(_, ii) = as<IntegerVector>(TMPOUT["best_state"]);
-          CurrentPopFuncValues(_, ii) = as<NumericVector>(TMPOUT["best_value"]);
-        }
-
-
-
-        for (int ii = 0; ii < 5; ii++) {
-
-          List TMPOUT = SANNOrderedMOO(selectionstat, Data, ElitePop(_, ii), ElitePopFuncValues, Candidates, niterSANN, stepSANN);
-          CurrentPop(_, ii) = as<IntegerVector>(TMPOUT["best_state"]);
-          CurrentPopFuncValues(_, ii) = as<NumericVector>(TMPOUT["best_value"]);
-        }
-
-
-
-        CurrentPopandElitePop0 = cbindIM(CurrentPop, ElitePop);
-        CurrentPopandElitePopFuncValues0 = cbindNM(CurrentPopFuncValues, ElitePopFuncValues);
-
-        notduplicated = whichRcpp(!duplicatedRcpp(transpose(CurrentPopandElitePopFuncValues0)));
-
-
-
-
-        CurrentPopandElitePop = subcolIM(CurrentPopandElitePop0, notduplicated);
-
-        CurrentPopandElitePopFuncValues = subcolNM(CurrentPopandElitePopFuncValues0, notduplicated);
-
-
-
-        frontier3 = whichRcpp(!do_is_dominated(CurrentPopandElitePopFuncValues));
-        lengthfrontier = frontier3.length();
-      }
-    }
-    return Rcpp::List::create(Rcpp::Named("iterations") = "Failed");
-  }
 }
-
-LogicalVector makeonecrossBool(const LogicalVector& x1, const LogicalVector& x2, const int& nbits, const double& mutprob, const double& mutintensity) {
-  LogicalVector SampleFrom(2);
-  SampleFrom(0) = false;
-  SampleFrom(1) = true;
-
-  double randnum;
-  LogicalVector cross;
-  int i = 0;
-  int sol;
-  while (cross.length() < nbits) {
-
-
-    sol = Rcpp::sample(2, 1, false)(0);
-    if (sol == 1) {
-      cross.push_back(x1(i));
-    } else {
-      cross.push_back(x2(i));
-    }
-    i = i + 1;
-  }
-
-
-  for (int i = 0; i < mutintensity; i++) {
-    randnum = runif(1)(0);
-    if (randnum < mutprob) {
-      cross(Rcpp::sample(nbits, 1, false)(0) - 1) = Rcpp::sample(SampleFrom, 1, false)(0);
-    }
-  }
-  return cross;
-}
-
-LogicalMatrix GenerateCrossesfromElitesBool(LogicalMatrix Elites, int nbits, int npop, double mutprob, int mutintensity, NumericVector prob) {
-
-  LogicalMatrix newcrosses(nbits, npop);
-  int nelite = Elites.ncol();
-  for (int i = 0; i < npop; ++i) {
-    newcrosses(_, i) = makeonecrossBool(Elites(_, Rcpp::sample(nelite, 1, false, prob)(0) - 1), Elites(_, Rcpp::sample(nelite, 1, false, prob)(0) - 1), nbits, mutprob, mutintensity);
-  }
-  return newcrosses;
-}
-
-
-
-
-
-
-
-// [[Rcpp::export]]
-
-List SelectSetMOBool(const Rcpp::List& Data, const int& nbits, const Rcpp::Function selectionstat, int nstats, int npopGA = 100, double mutprob = .8, int mutintensity = 1, int nitGA = 500, int minlengthfrontier = 10, bool display_progress = true) {
-  LogicalMatrix CurrentPop(nbits, npopGA);
-  NumericMatrix CurrentPopFuncValues(nstats, npopGA);
-  IntegerVector frontier3;
-  NumericVector statout(nstats);
-  LogicalMatrix CurrentPopandElitePop;
-  NumericMatrix CurrentPopandElitePopFuncValues;
-  LogicalMatrix CurrentPopandElitePop0;
-  NumericMatrix CurrentPopandElitePopFuncValues0;
-  IntegerVector notduplicated;
-  LogicalVector SampleFrom(2);
-  SampleFrom(0) = false;
-  SampleFrom(1) = true;
-
-  int lengthfrontier = 0;
-  while (lengthfrontier < minlengthfrontier) {
-
-    for (int i = 0; i < npopGA; i++) {
-
-      RNGScope rngScope;
-      CurrentPop(_, i) = Rcpp::sample(SampleFrom, nbits, true);
-      ;
-    }
-
-
-    for (int i = 0; i < npopGA; i++) {
-      statout = as<NumericVector>(selectionstat(whichRcpp(CurrentPop(_, i)), Data));
-
-      CurrentPopFuncValues(_, i) = statout;
-
-    }
-
-    frontier3 = whichRcpp(!do_is_dominated(CurrentPopFuncValues));
-    lengthfrontier = frontier3.length();
-  }
-
-
-  CurrentPopandElitePop = CurrentPop;
-  CurrentPopandElitePopFuncValues = CurrentPopFuncValues;
-  Progress p(nitGA, display_progress);
-
-  for (int iters = 0; iters < nitGA; iters++) {
-    p.increment();
-
-    LogicalMatrix ElitePop(nbits, lengthfrontier);
-    NumericMatrix ElitePopFuncValues(nstats, lengthfrontier);
-
-
-    for (int ii = 0; ii < lengthfrontier; ii++) {
-
-      ElitePop(_, ii) = CurrentPopandElitePop(_, frontier3(ii));
-      ElitePopFuncValues(_, ii) = CurrentPopandElitePopFuncValues(_, frontier3(ii));
-
-    }
-
-
-    if (iters == nitGA - 1) {
-      return Rcpp::List::create(Rcpp::Named("iterations") = nitGA, Rcpp::Named("ElitePopFuncValues") = ElitePopFuncValues, Rcpp::Named("ElitePop") = ElitePop);
-      terminate();
-    }
-
-
-
-    lengthfrontier = 0;
-    NumericVector prob(ElitePopFuncValues.ncol());
-    std::fill(prob.begin(),prob.end(),1);
-    for (int i=0;i<ElitePopFuncValues.nrow();i++){
-      double mean_E =sum(ElitePopFuncValues(i,_))/ElitePopFuncValues.ncol();
-      double sd_E=sd(ElitePopFuncValues(i,_));
-      for (int j=0;j<ElitePopFuncValues.ncol();j++){
-        double x=ElitePopFuncValues(i,j);
-        NumericVector xvec={x};
-        prob[j]=prob[j]*1/(10+Rcpp::dnorm(xvec,mean_E,sd_E,false)[0]);
-      }
-    }
-    while (lengthfrontier < minlengthfrontier) {
-      CurrentPop = GenerateCrossesfromElitesBool(ElitePop, nbits, npopGA, mutprob, mutintensity, prob);
-
-      for (int iii = 0; iii < npopGA; iii++) {
-        statout = as<NumericVector>(selectionstat(whichRcpp(CurrentPop(_, iii)), Data));
-        CurrentPopFuncValues(_, iii) = statout;
-      }
-
-
-
-      CurrentPopandElitePop0 = cbindLM(CurrentPop, ElitePop);
-      CurrentPopandElitePopFuncValues0 = cbindNM(CurrentPopFuncValues, ElitePopFuncValues);
-
-
-      notduplicated = whichRcpp(!duplicatedRcpp(transpose(CurrentPopandElitePopFuncValues0)));
-
-
-      CurrentPopandElitePop = subcolLM(CurrentPopandElitePop0, notduplicated);
-
-      CurrentPopandElitePopFuncValues = subcolNM(CurrentPopandElitePopFuncValues0, notduplicated);
-
-
-      frontier3 = whichRcpp(!do_is_dominated(CurrentPopandElitePopFuncValues));
-      lengthfrontier = frontier3.length();
-      if (lengthfrontier>2000){
-        frontier3=sample(frontier3,2000, false);
-        lengthfrontier=2000;
-      }
-    }
-  }
-
-  return Rcpp::List::create(Rcpp::Named("iterations") = "Failed");
-}
-
-
-
-
 
 
 
